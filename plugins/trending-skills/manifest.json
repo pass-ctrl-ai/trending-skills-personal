@@ -1,0 +1,7 @@
+{
+  "name": "trending-skills",
+  "description": "Skills Trending - 获取 skills.sh 技能排行榜趋势，包含排名变化、AI 总结、分类分析",
+  "version": "1.0.0",
+  "author": "Skills Trending",
+  "license": "MIT"
+}
