@@ -44,8 +44,15 @@ class SkillsFetcher:
         """异步获取数据"""
         try:
             async with async_playwright() as p:
-                # 启动浏览器
-                browser = await p.chromium.launch()
+                # 启动浏览器 - CI 环境使用 headless 模式
+                browser = await p.chromium.launch(
+                    headless=True,
+                    args=[
+                        '--disable-dev-shm-usage',
+                        '--no-sandbox',
+                        '--disable-setuid-sandbox',
+                    ]
+                )
 
                 # 创建页面
                 page = await browser.new_page()
@@ -71,7 +78,7 @@ class SkillsFetcher:
                 content = await page.content()
 
                 # 解析排行榜
-                skills = self.parse_leaderboard(content.decode())
+                skills = self.parse_leaderboard(content)
 
                 await browser.close()
 

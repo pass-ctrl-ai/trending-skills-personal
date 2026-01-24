@@ -17,19 +17,6 @@ CLAUDE_MODEL = os.getenv("CLAUDE_MODEL", "claude-3-5-sonnet-20241022")
 CLAUDE_MAX_TOKENS = 8192
 
 # ============================================================================
-# API 配置
-# ============================================================================
-ANTHROPIC_BASE_URL = os.getenv(
-    "ANTHROPIC_BASE_URL",
-    "https://open.bigmodel.cn/api/anthropic"
-)
-ZHIPU_API_KEY = os.getenv("ZHIPU_API_KEY")
-
-# Claude 模型配置
-CLAUDE_MODEL = os.getenv("CLAUDE_MODEL", "claude-3-5-sonnet-20241022")
-CLAUDE_MAX_TOKENS = 8192
-
-# ============================================================================
 # RSS 配置
 # ============================================================================
 RSS_URL = os.getenv("RSS_URL", "https://news.smol.ai/rss.xml")
