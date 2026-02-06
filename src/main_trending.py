@@ -12,7 +12,7 @@ project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
 
 from src.config import (
-    ZHIPU_API_KEY,
+    OPENAI_API_KEY,
     NOTIFY_CHANNEL,
     TELEGRAM_BOT_TOKEN,
     TELEGRAM_CHAT_ID,
@@ -59,9 +59,8 @@ def main():
     print_banner()
 
     # 检查环境变量
-    if not ZHIPU_API_KEY:
-        print("❌ 错误: ZHIPU_API_KEY 环境变量未设置")
-        print("   请设置 Claude API 的 Key")
+    if not OPENAI_API_KEY:
+        print("❌ 错误: OPENAI_API_KEY 环境变量未设置")
         sys.exit(1)
 
     # 通知渠道检查

@@ -6,15 +6,15 @@ import os
 # ============================================================================
 # Claude API 配置 (复用现有配置)
 # ============================================================================
-ANTHROPIC_BASE_URL = os.getenv(
-    "ANTHROPIC_BASE_URL",
-    "https://open.bigmodel.cn/api/anthropic"
-)
-ZHIPU_API_KEY = os.getenv("ZHIPU_API_KEY")
+# =========================================================================
+# OpenAI 配置
+# =========================================================================
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL")  # optional
 
-# Claude 模型配置
-CLAUDE_MODEL = os.getenv("CLAUDE_MODEL", "claude-3-5-sonnet-20241022")
-CLAUDE_MAX_TOKENS = 8192
+# OpenAI 模型配置
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+OPENAI_MAX_TOKENS = int(os.getenv("OPENAI_MAX_TOKENS", "4096"))
 
 # ============================================================================
 # RSS 配置

@@ -59,8 +59,9 @@ jobs:
 
       - name: Run Skills Trending
         env:
-          ZHIPU_API_KEY: ${{ secrets.ZHIPU_API_KEY }}
-          ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
+          OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
 
           # Notification channel
           NOTIFY_CHANNEL: telegram
