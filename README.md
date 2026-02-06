@@ -1,6 +1,6 @@
 # Skills Trending Daily
 
-> 自动追踪 skills.sh 技能排行榜，AI 智能分析，每日趋势报告邮件
+> 自动追踪 skills.sh 技能排行榜，AI 智能分析，定期趋势报告（默认 Telegram 推送，每 3 天一次）
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
@@ -24,7 +24,9 @@
 
 ## 项目简介
 
-**Skills Trending Daily** 是一个自动化技能趋势追踪系统。它每天从 [skills.sh/trending](https://skills.sh/trending) 获取最新的技能排行榜，使用 Claude AI 对热门技能进行智能分析和分类，计算排名变化趋势，并通过 Resend 发送专业的 HTML 邮件报告。
+**Skills Trending Daily** 是一个自动化技能趋势追踪系统。它从 [skills.sh/trending](https://skills.sh/trending) 获取最新的技能排行榜，使用 **OpenAI（默认 gpt-4o-mini）** 对热门技能进行智能分析和分类，计算排名变化趋势，并默认通过 **Telegram** 推送报告（也可切换为 Resend 邮件）。
+
+另外：当检测到“Top20 与上一期完全一致”时，会自动改为抓取榜单中**未出现在上一期 Top20 的前 20 个技能**（避免重复分析同一批技能）。
 
 ### 为什么需要这个项目？
 
@@ -43,9 +45,9 @@
 |-----|------|
 | **排行榜抓取** | 使用 Playwright 动态渲染获取 Top 100 技能排行 |
 | **详情抓取** | 深度抓取热门技能的详细信息 |
-| **AI 分析** | Claude AI 自动总结、分类、提取价值 |
+| **AI 分析** | OpenAI 自动总结、分类、提取价值（默认 gpt-4o-mini） |
 | **趋势计算** | 排名变化、安装量变化、新晋/掉榜检测 |
-| **邮件报告** | 专业 HTML 邮件，每个技能可点击跳转 |
+| **通知推送** | 默认 Telegram 文本推送（可选 Resend HTML 邮件） |
 | **数据存储** | SQLite 存储历史数据，支持趋势分析 |
 
 ### 邮件报告内容
@@ -73,9 +75,9 @@ Skills Trending Daily - 2026-01-24
 └─────────────────────────────────────────────────────────────────┘
 
   ┌──────────────┐      ┌──────────────┐      ┌──────────────┐
-  │   GitHub     │      │   Playwright │      │    Claude    │
+  │   GitHub     │      │   Playwright │      │   OpenAI     │
   │   Actions    │ ──▶ │  Skills      │ ──▶ │  Summarizer │
-  │  (Cron Daily)│      │  Fetcher     │      │     AI       │
+  │ (Cron / 3d)  │      │  Fetcher     │      │     AI       │
   └──────────────┘      └──────┬───────┘      └──────┬───────┘
                                │                     │
                                ▼                     │
@@ -122,8 +124,9 @@ Skills Trending Daily - 2026-01-24
 ### 环境要求
 
 - Python 3.11+
-- Claude API Key（支持智谱代理）
-- Resend API Key
+- OpenAI API Key
+- Telegram Bot（默认推送渠道）
+- （可选）Resend API Key（如果你想发邮件）
 
 ### 安装
 
@@ -152,10 +155,12 @@ nano .env
 ### 运行
 
 ```bash
-# 设置环境变量
-export ZHIPU_API_KEY="your_api_key"
-export RESEND_API_KEY="your_resend_key"
-export EMAIL_TO="your_email@example.com"
+# 设置环境变量（示例：Telegram 推送 + OpenAI）
+export OPENAI_API_KEY="your_openai_key"
+export OPENAI_MODEL="gpt-4o-mini"
+export NOTIFY_CHANNEL="telegram"
+export TELEGRAM_BOT_TOKEN="123456:ABCDEF..."
+export TELEGRAM_CHAT_ID="123456789"
 
 # 运行
 python src/main_trending.py
@@ -169,16 +174,29 @@ python src/main_trending.py
 
 | 变量 | 必需 | 说明 | 默认值 |
 |-----|------|------|--------|
-| `ZHIPU_API_KEY` | Yes | Claude API Key（智谱代理） | - |
-| `ANTHROPIC_BASE_URL` | No | Claude API 地址 | `https://open.bigmodel.cn/api/anthropic` |
-| `RESEND_API_KEY` | Yes | Resend API Key | - |
-| `EMAIL_TO` | Yes | 收件人邮箱 | - |
+| `OPENAI_API_KEY` | Yes | OpenAI API Key | - |
+| `OPENAI_BASE_URL` | No | OpenAI Base URL（代理/兼容接口可用） | - |
+| `OPENAI_MODEL` | No | OpenAI 模型 | `gpt-4o-mini` |
+| `NOTIFY_CHANNEL` | No | 通知渠道：`telegram` 或 `resend` | `telegram` |
+| `TELEGRAM_BOT_TOKEN` | Yes* | Telegram Bot Token（当 `telegram` 时必填） | - |
+| `TELEGRAM_CHAT_ID` | Yes* | Telegram Chat ID（当 `telegram` 时必填） | - |
+| `TELEGRAM_MESSAGE_THREAD_ID` | No | 话题群 thread id（可选） | - |
+| `RESEND_API_KEY` | Yes* | Resend API Key（当 `resend` 时必填） | - |
+| `EMAIL_TO` | Yes* | 收件人邮箱（当 `resend` 时必填） | - |
 | `RESEND_FROM_EMAIL` | No | 发件人邮箱 | `onboarding@resend.dev` |
 | `DB_PATH` | No | 数据库路径 | `data/trends.db` |
 | `DB_RETENTION_DAYS` | No | 数据保留天数 | `30` |
 | `SURGE_THRESHOLD` | No | 暴涨阈值（比例） | `0.3` |
 
-### Resend 配置
+### Telegram 配置（推荐）
+
+1. 在 BotFather 创建 bot，拿到 `TELEGRAM_BOT_TOKEN`
+2. 把 bot 拉进你要接收消息的群（或私聊 bot）
+3. 获取 `TELEGRAM_CHAT_ID`
+
+> 如果你使用“话题群/论坛群”，可选配置 `TELEGRAM_MESSAGE_THREAD_ID`。
+
+### Resend 配置（可选）
 
 1. 注册 [Resend](https://resend.com)
 2. 创建 API Key
@@ -216,14 +234,15 @@ sqlite3 data/trends.db "SELECT name, summary, category FROM skills_details WHERE
 
 1. Fork 本仓库
 2. 在 GitHub Settings > Secrets and variables > Actions 中添加：
-   - `ZHIPU_API_KEY`
-   - `RESEND_API_KEY`
-   - `EMAIL_TO`（可选）
+   - `OPENAI_API_KEY`
+   - `TELEGRAM_BOT_TOKEN`
+   - `TELEGRAM_CHAT_ID`
+   - （可选）`OPENAI_MODEL`（例如 `gpt-4o-mini`）
 3. 启用 Actions
 
 ### 定时执行
 
-默认每天 **UTC 02:00**（北京时间 10:00）自动运行。
+默认每 **3 天**在 **UTC 02:00** 自动运行（约等于北京时间 10:00）。
 
 修改时间：编辑 `.github/workflows/skills-trending.yml` 中的 `cron` 表达式。
 
@@ -312,7 +331,7 @@ skills-trending/
 |-----|------|
 | `skills_fetcher.py` | 使用 Playwright 抓取 skills.sh 榜单，支持动态渲染 |
 | `detail_fetcher.py` | 抓取单个技能的详细页面内容 |
-| `claude_summarizer.py` | 调用 Claude API 分析技能内容 |
+| `claude_summarizer.py` | 调用 OpenAI API 分析技能内容（文件名保留兼容） |
 | `trend_analyzer.py` | 计算排名变化、新晋/掉榜、暴涨检测 |
 | `html_reporter.py` | 生成专业 HTML 邮件（无 emoji，可点击链接） |
 | `database.py` | SQLite 数据库操作，支持数据持久化 |
@@ -416,6 +435,7 @@ schedule:
 ## 致谢
 
 - [skills.sh](https://skills.sh) - 技能数据来源
-- [Anthropic](https://anthropic.com) - Claude AI
-- [Resend](https://resend.com) - 邮件服务
+- [OpenAI](https://platform.openai.com) - LLM 分析
+- [Telegram Bot API](https://core.telegram.org/bots/api) - 消息推送
+- [Resend](https://resend.com) - 邮件服务（可选）
 - [Playwright](https://playwright.dev) - 浏览器自动化
