@@ -52,3 +52,9 @@ docs/.index.json
 
 # 日志
 *.log
+
+# Local personal config
+.env
+data/
+__pycache__/
+.venv/
