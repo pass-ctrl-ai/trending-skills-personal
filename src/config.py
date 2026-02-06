@@ -292,8 +292,17 @@ TOP_N_DETAILS = 20  # 抓取详情的数量
 FETCH_REQUEST_DELAY = 2  # 抓取详情时的请求间隔（秒）
 
 # ============================================================================
-# Resend 邮件配置
+# 通知渠道配置
 # ============================================================================
+# notify channel: telegram | resend
+NOTIFY_CHANNEL = os.getenv("NOTIFY_CHANNEL", "telegram")
+
+# Telegram
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+TELEGRAM_MESSAGE_THREAD_ID = os.getenv("TELEGRAM_MESSAGE_THREAD_ID")  # optional
+
+# Resend (email)
 RESEND_API_KEY = os.getenv("RESEND_API_KEY")
 RESEND_FROM_EMAIL = os.getenv("RESEND_FROM_EMAIL", "onboarding@resend.dev")
 EMAIL_TO = os.getenv("EMAIL_TO")

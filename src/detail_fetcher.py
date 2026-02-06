@@ -29,9 +29,8 @@ class DetailFetcher:
             "User-Agent": "Mozilla/5.0 (compatible; SkillsTrendingBot/1.0)"
         })
 
-    def fetch_top20_details(self, skills: List[Dict]) -> List[Dict]:
-        """
-        批量抓取 Top 20 详情
+    def fetch_top_details(self, skills: List[Dict], top_n: int = 20) -> List[Dict]:
+        """批量抓取 Top N 详情
 
         Args:
             skills: Top 20 技能列表
@@ -54,7 +53,7 @@ class DetailFetcher:
             ]
         """
         results = []
-        top_n = min(20, len(skills))
+        top_n = min(int(top_n), len(skills))
 
         print(f"📥 开始抓取 Top {top_n} 详情...")
 
@@ -305,7 +304,7 @@ class DetailFetcher:
         return "\n".join(lines)
 
 
-def fetch_details(skills: List[Dict]) -> List[Dict]:
+def fetch_details(skills: List[Dict], top_n: int = 20) -> List[Dict]:
     """便捷函数：获取技能详情"""
     fetcher = DetailFetcher()
-    return fetcher.fetch_top20_details(skills)
+    return fetcher.fetch_top_details(skills, top_n=top_n)

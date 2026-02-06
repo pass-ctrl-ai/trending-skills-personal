@@ -345,15 +345,7 @@ class Database:
         return [dict(row) for row in cursor.fetchall()]
 
     def get_available_dates(self, limit: int = 30) -> List[str]:
-        """
-        获取可用的日期列表
-
-        Args:
-            limit: 返回的最大日期数
-
-        Returns:
-            日期列表，按降序排列（最新的在前）
-        """
+        """获取可用的日期列表（最新在前）"""
         self.connect()
         cursor = self.conn.cursor()
 
@@ -365,6 +357,24 @@ class Database:
         """, (limit,))
 
         return [row["date"] for row in cursor.fetchall()]
+
+    def get_latest_date(self) -> Optional[str]:
+        """获取数据库中最新的 date（skills_daily），没有则返回 None"""
+        dates = self.get_available_dates(limit=1)
+        return dates[0] if dates else None
+
+    def get_top_n_names(self, date: str, n: int = 20) -> List[str]:
+        """获取某一天 Top N 的技能 name 列表（按 rank 升序）"""
+        self.connect()
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            SELECT name
+            FROM skills_daily
+            WHERE date = ?
+            ORDER BY rank ASC
+            LIMIT ?
+        """, (date, n))
+        return [row["name"] for row in cursor.fetchall()]
 
     def get_category_stats(self, date: str) -> List[Dict]:
         """

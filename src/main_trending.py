@@ -13,12 +13,16 @@ sys.path.insert(0, project_root)
 
 from src.config import (
     ZHIPU_API_KEY,
+    NOTIFY_CHANNEL,
+    TELEGRAM_BOT_TOKEN,
+    TELEGRAM_CHAT_ID,
+    TELEGRAM_MESSAGE_THREAD_ID,
     RESEND_API_KEY,
     EMAIL_TO,
     RESEND_FROM_EMAIL,
     DB_PATH,
     DB_RETENTION_DAYS,
-    TOP_N_DETAILS
+    TOP_N_DETAILS,
 )
 from src.skills_fetcher import SkillsFetcher
 from src.detail_fetcher import DetailFetcher
@@ -27,6 +31,7 @@ from src.database import Database
 from src.trend_analyzer import TrendAnalyzer
 from src.html_reporter import HTMLReporter
 from src.resend_sender import ResendSender
+from src.telegram_sender import TelegramSender
 
 
 def print_banner():
@@ -59,14 +64,23 @@ def main():
         print("   请设置 Claude API 的 Key")
         sys.exit(1)
 
-    if not RESEND_API_KEY:
-        print("❌ 错误: RESEND_API_KEY 环境变量未设置")
-        print("   请设置 Resend API Key")
-        sys.exit(1)
-
-    if not EMAIL_TO:
-        print("❌ 错误: EMAIL_TO 环境变量未设置")
-        print("   请设置收件人邮箱")
+    # 通知渠道检查
+    if NOTIFY_CHANNEL == "telegram":
+        if not TELEGRAM_BOT_TOKEN:
+            print("❌ 错误: TELEGRAM_BOT_TOKEN 环境变量未设置")
+            sys.exit(1)
+        if not TELEGRAM_CHAT_ID:
+            print("❌ 错误: TELEGRAM_CHAT_ID 环境变量未设置")
+            sys.exit(1)
+    elif NOTIFY_CHANNEL == "resend":
+        if not RESEND_API_KEY:
+            print("❌ 错误: RESEND_API_KEY 环境变量未设置")
+            sys.exit(1)
+        if not EMAIL_TO:
+            print("❌ 错误: EMAIL_TO 环境变量未设置")
+            sys.exit(1)
+    else:
+        print(f"❌ 错误: NOTIFY_CHANNEL 不支持: {NOTIFY_CHANNEL} (仅支持 telegram/resend)")
         sys.exit(1)
 
     # 获取今日日期
@@ -83,15 +97,41 @@ def main():
         print(f"   成功获取 {len(today_skills)} 个技能")
         print()
 
-        # 2. 抓取 Top N 详情
-        print(f"[步骤 2/7] 抓取 Top {TOP_N_DETAILS} 详情...")
+        # 2. 初始化数据库（用于去重判断 & 保存结果）
+        print(f"[步骤 2/7] 初始化数据库...")
+        db = Database(DB_PATH)
+        db.init_db()
+
+        # 3. 选择需要抓取详情的 TopN（去重逻辑）
+        print(f"[步骤 3/7] 选择需要抓取详情的 Top {TOP_N_DETAILS} ...")
+        detail_candidates = today_skills[:TOP_N_DETAILS]
+
+        latest_date = db.get_latest_date()
+        # latest_date 可能就是今天（如果重复运行）；仅当 latest_date 存在且与 today 不同才做对比
+        if latest_date and latest_date != today:
+            prev_top = db.get_top_n_names(latest_date, n=TOP_N_DETAILS)
+            curr_top = [s.get("name") for s in today_skills[:TOP_N_DETAILS]]
+
+            # 判断是否“前20固定”（顺序完全一致）
+            if prev_top and curr_top == prev_top:
+                print(f"   ⚠️ 检测到今日 Top{TOP_N_DETAILS} 与上次({latest_date})完全一致，启用去重抓取逻辑")
+                prev_set = set(prev_top)
+                dedup = [s for s in today_skills if s.get("name") not in prev_set]
+                if len(dedup) >= TOP_N_DETAILS:
+                    detail_candidates = dedup[:TOP_N_DETAILS]
+                    print(f"   ✅ 改为抓取榜单中未出现在上一期 Top{TOP_N_DETAILS} 的 {TOP_N_DETAILS} 个技能")
+                else:
+                    print(f"   ⚠️ 去重后不足 {TOP_N_DETAILS} 个，回退抓取原 Top{TOP_N_DETAILS}")
+
+        # 4. 抓取 Top N 详情
+        print(f"[步骤 4/7] 抓取 Top {TOP_N_DETAILS} 详情...")
         detail_fetcher = DetailFetcher()
-        top_details = detail_fetcher.fetch_top20_details(today_skills)
+        top_details = detail_fetcher.fetch_top_details(detail_candidates, top_n=TOP_N_DETAILS)
         print(f"   成功抓取 {len(top_details)} 个技能详情")
         print()
 
-        # 3. AI 总结和分类
-        print(f"[步骤 3/7] AI 分析和分类...")
+        # 5. AI 总结和分类
+        print(f"[步骤 5/7] AI 分析和分类...")
         summarizer = ClaudeSummarizer()
         ai_summaries = summarizer.summarize_and_classify(top_details)
 
@@ -99,15 +139,13 @@ def main():
         ai_summary_map = {s["name"]: s for s in ai_summaries}
         print()
 
-        # 4. 保存到数据库
-        print(f"[步骤 4/7] 保存到数据库...")
-        db = Database(DB_PATH)
-        db.init_db()
+        # 6. 保存到数据库
+        print(f"[步骤 6/7] 保存到数据库...")
         db.save_skill_details(ai_summaries)
         print()
 
-        # 5. 计算趋势
-        print(f"[步骤 5/7] 计算趋势...")
+        # 7. 计算趋势
+        print(f"[步骤 7/7] 计算趋势...")
         analyzer = TrendAnalyzer(db)
         trends = analyzer.calculate_trends(today_skills, today, ai_summary_map)
 
@@ -120,28 +158,43 @@ def main():
         print(f"   暴涨: {len(trends['surging'])} 个")
         print()
 
-        # 6. 生成 HTML 邮件
-        print(f"[步骤 6/7] 生成 HTML 邮件...")
+        # 通知输出
         reporter = HTMLReporter()
-        html_content = reporter.generate_email_html(trends, today)
-        print(f"   HTML 长度: {len(html_content)} 字符")
-        print()
 
-        # 7. 发送邮件
-        print(f"[步骤 7/7] 发送邮件...")
-        sender = ResendSender(RESEND_API_KEY)
-        result = sender.send_email(
-            to=EMAIL_TO,
-            subject=f"📊 Skills Trending Daily - {today}",
-            html_content=html_content,
-            from_email=RESEND_FROM_EMAIL
-        )
+        if NOTIFY_CHANNEL == "telegram":
+            print("[通知] 发送 Telegram 消息...")
+            text = reporter.generate_telegram_text(trends, today)
+            sender = TelegramSender(TELEGRAM_BOT_TOKEN)
+            thread_id = int(TELEGRAM_MESSAGE_THREAD_ID) if TELEGRAM_MESSAGE_THREAD_ID else None
+            result = sender.send_message(
+                chat_id=TELEGRAM_CHAT_ID,
+                text=text,
+                parse_mode="HTML",
+                disable_web_page_preview=True,
+                message_thread_id=thread_id,
+            )
+            if result.get("success"):
+                print(f"   ✅ Telegram 发送成功! message_id: {result.get('id')}")
+            else:
+                print(f"   ❌ Telegram 发送失败: {result.get('message')}")
+            print()
 
-        if result["success"]:
-            print(f"   ✅ 邮件发送成功! ID: {result['id']}")
-        else:
-            print(f"   ❌ 邮件发送失败: {result['message']}")
-        print()
+        else:  # resend
+            print("[通知] 发送 Resend 邮件...")
+            html_content = reporter.generate_email_html(trends, today)
+            print(f"   HTML 长度: {len(html_content)} 字符")
+            sender = ResendSender(RESEND_API_KEY)
+            result = sender.send_email(
+                to=EMAIL_TO,
+                subject=f"Skills Trending Daily - {today}",
+                html_content=html_content,
+                from_email=RESEND_FROM_EMAIL,
+            )
+            if result.get("success"):
+                print(f"   ✅ 邮件发送成功! ID: {result.get('id')}")
+            else:
+                print(f"   ❌ 邮件发送失败: {result.get('message')}")
+            print()
 
         # 8. 清理过期数据
         print(f"[清理] 清理 {DB_RETENTION_DAYS} 天前的数据...")

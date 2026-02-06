@@ -6,11 +6,73 @@ from typing import Dict, List
 
 
 class HTMLReporter:
-    """生成 HTML 邮件报告"""
+    """生成 HTML 邮件报告 / Telegram 文本报告"""
 
     def __init__(self):
         """初始化"""
         self.base_url = "https://skills.sh"
+
+    def generate_telegram_text(self, trends: Dict, date: str) -> str:
+        """生成 Telegram 可发送的文本（HTML parse_mode 友好）"""
+
+        def esc(s: str) -> str:
+            # Telegram HTML 只支持少量标签；这里尽量不注入特殊字符
+            return (s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+        top = trends.get("top_20", [])
+        rising = trends.get("rising_top5", [])
+        falling = trends.get("falling_top5", [])
+        new_entries = trends.get("new_entries", [])
+        dropped = trends.get("dropped_entries", [])
+        surging = trends.get("surging", [])
+
+        lines = []
+        lines.append(f"<b>Skills Trending</b> — {esc(date)}")
+
+        # Top 20
+        lines.append("\n<b>Top 20</b>")
+        for s in top[:20]:
+            name = esc(s.get("name"))
+            rank = s.get("rank")
+            url = esc(s.get("url"))
+            summary = esc(s.get("summary", ""))
+            if url:
+                lines.append(f"{rank}. <a href=\"{url}\">{name}</a> — {summary}")
+            else:
+                lines.append(f"{rank}. {name} — {summary}")
+
+        # Rising/Falling
+        if rising:
+            lines.append("\n<b>Rising</b>")
+            for s in rising:
+                lines.append(f"↑ {esc(s.get('name'))} ({s.get('rank_delta', 0)})")
+
+        if falling:
+            lines.append("\n<b>Declining</b>")
+            for s in falling:
+                lines.append(f"↓ {esc(s.get('name'))} ({s.get('rank_delta', 0)})")
+
+        if new_entries:
+            lines.append("\n<b>New</b>")
+            for s in new_entries[:10]:
+                lines.append(f"+ {esc(s.get('name'))}")
+
+        if dropped:
+            lines.append("\n<b>Dropped</b>")
+            for s in dropped[:10]:
+                lines.append(f"- {esc(s.get('name'))}")
+
+        if surging:
+            lines.append("\n<b>Surging installs</b>")
+            for s in surging[:10]:
+                rate = s.get("installs_rate", 0)
+                lines.append(f"! {esc(s.get('name'))} ({rate:.0%})")
+
+        # Telegram 单条消息长度限制 ~4096；这里做个硬截断
+        text = "\n".join(lines)
+        if len(text) > 3800:
+            text = text[:3800] + "\n..."
+        return text
 
     def generate_email_html(self, trends: Dict, date: str) -> str:
         """
