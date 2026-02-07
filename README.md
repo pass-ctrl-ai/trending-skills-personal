@@ -1,170 +1,70 @@
 # Skills Trending Daily
 
-> 自动追踪 skills.sh 技能排行榜，AI 智能分析，定期趋势报告（默认 Telegram 推送，每 3 天一次）
+自动追踪 <https://skills.sh/trending> 技能排行榜，抓取详情并做 AI 分类/总结，计算趋势并通过 Telegram 推送（GitHub Actions 每 3 天一次）。
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+## 项目要点（最新实现）
 
----
+- **去重抓取**：当检测到「今日 Top20 与上一期 Top20 完全一致」时，会改为从榜单中挑选**未出现在上一期 Top20**的前 20 个技能，避免重复分析。
+- **Telegram 默认推送**：发送 HTML parse_mode 文本（无邮件依赖）。
+- **AI（OpenAI-compatible）**：当前默认走 **NVIDIA NIM integrate**（OpenAI-compatible endpoint）。
+  - 代码默认 `OPENAI_BASE_URL=https://integrate.api.nvidia.com/v1`
+  - 你现在使用的模型：`meta/llama3-70b-instruct`
+- **可观测性**：Telegram 报告顶部会显示 AI 状态（ok/fallback），避免“看起来像 AI 但其实是降级/望文生义”。
 
-## 目录
-
-- [项目简介](#项目简介)
-- [功能特性](#功能特性)
-- [系统架构](#系统架构)
-- [快速开始](#快速开始)
-- [配置说明](#配置说明)
-- [使用方法](#使用方法)
-- [GitHub Actions](#github-actions)
-- [数据模型](#数据模型)
-- [开发指南](#开发指南)
-- [常见问题](#常见问题)
-
----
-
-## 项目简介
-
-**Skills Trending Daily** 是一个自动化技能趋势追踪系统。它从 [skills.sh/trending](https://skills.sh/trending) 获取最新的技能排行榜，使用 **OpenAI（默认 gpt-4o-mini）** 对热门技能进行智能分析和分类，计算排名变化趋势，并默认通过 **Telegram** 推送报告（也可切换为 Resend 邮件）。
-
-另外：当检测到“Top20 与上一期完全一致”时，会自动改为抓取榜单中**未出现在上一期 Top20 的前 20 个技能**（避免重复分析同一批技能）。
-
-### 为什么需要这个项目？
-
-1. **开发者视角** - 快速了解哪些技能值得学习
-2. **趋势洞察** - 捕捉新兴技术框架和工具的崛起
-3. **智能总结** - AI 帮你理解每个技能解决什么问题
-4. **自动化** - 无需手动查看网站，每天自动推送
-
----
-
-## 功能特性
-
-### 核心功能
-
-| 功能 | 说明 |
-|-----|------|
-| **排行榜抓取** | 使用 Playwright 动态渲染获取 Top 100 技能排行 |
-| **详情抓取** | 深度抓取热门技能的详细信息 |
-| **AI 分析** | OpenAI 自动总结、分类、提取价值（默认 gpt-4o-mini） |
-| **趋势计算** | 排名变化、安装量变化、新晋/掉榜检测 |
-| **通知推送** | 默认 Telegram 文本推送（可选 Resend HTML 邮件） |
-| **数据存储** | SQLite 存储历史数据，支持趋势分析 |
-
-### 邮件报告内容
-
-```
-Skills Trending Daily - 2026-01-24
-├── Top 20 Leaderboard（含 AI 总结）
-│   ├── 技能名称（可点击跳转）、排名、安装量
-│   ├── AI 一句话摘要
-│   ├── 详细说明
-│   └── 解决的问题标签
-├── Rising Skills（上升幅度 Top 5）
-├── Declining Skills（下降幅度 Top 5）
-├── New & Dropped（新晋/掉榜）
-└── Trending Up（安装量暴涨告警）
-```
-
----
-
-## 系统架构
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Skills Trending 系统架构                   │
-└─────────────────────────────────────────────────────────────────┘
-
-  ┌──────────────┐      ┌──────────────┐      ┌──────────────┐
-  │   GitHub     │      │   Playwright │      │   OpenAI     │
-  │   Actions    │ ──▶ │  Skills      │ ──▶ │  Summarizer │
-  │ (Cron / 3d)  │      │  Fetcher     │      │     AI       │
-  └──────────────┘      └──────┬───────┘      └──────┬───────┘
-                               │                     │
-                               ▼                     │
-                        ┌──────────────┐              │
-                        │   Detail     │              │
-                        │  Fetcher     │              │
-                        │  (Top N)     │              │
-                        └──────┬───────┘              │
-                               │                       │
-                               └───────┬───────────────┘
-                                       │
-                                       ▼
-                               ┌──────────────┐
-                               │  Database    │
-                               │  (SQLite)    │
-                               └──────┬───────┘
-                                      │
-                                      ▼
-                               ┌──────────────┐
-                               │   Trend      │
-                               │  Analyzer    │
-                               └──────┬───────┘
-                                      │
-                                      ▼
-                               ┌──────────────┐
-                               │   HTML       │
-                               │  Reporter    │
-                               └──────┬───────┘
-                                      │
-                                      ▼
-                               ┌──────────────┐
-                               │   Resend     │
-                               │   Sender     │
-                               └──────┬───────┘
-                                      │
-                                      ▼
-                               ──────► 您的邮箱
-```
-
----
-
-## 快速开始
-
-### 环境要求
-
-- Python 3.11+
-- OpenAI API Key
-- Telegram Bot（默认推送渠道）
-- （可选）Resend API Key（如果你想发邮件）
-
-### 安装
+## 快速开始（本地）
 
 ```bash
-# 克隆仓库
-git clone https://github.com/geekjourneyx/trending-skills.git
-cd trending-skills
+git clone https://github.com/pass-ctrl-ai/trending-skills-personal.git
+cd trending-skills-personal
 
-# 安装依赖
+python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-
-# 安装 Playwright 浏览器
 playwright install chromium
-```
 
-### 配置
-
-```bash
-# 复制环境变量模板
 cp .env.example .env
+# 编辑 .env，填入 OPENAI_API_KEY / OPENAI_MODEL / TELEGRAM_* 等
 
-# 编辑 .env 文件，填入你的 API Keys
-nano .env
-```
-
-### 运行
-
-```bash
-# 设置环境变量（示例：Telegram 推送 + OpenAI）
-export OPENAI_API_KEY="your_openai_key"
-export OPENAI_MODEL="gpt-4o-mini"
-export NOTIFY_CHANNEL="telegram"
-export TELEGRAM_BOT_TOKEN="123456:ABCDEF..."
-export TELEGRAM_CHAT_ID="123456789"
-
-# 运行
 python src/main_trending.py
 ```
+
+## 配置（环境变量）
+
+必需：
+
+- `OPENAI_API_KEY`：NVIDIA NIM 的 nvapi key（或任何 OpenAI-compatible 的 key）
+- `OPENAI_MODEL`：例如 `meta/llama3-70b-instruct`
+- `TELEGRAM_BOT_TOKEN`
+- `TELEGRAM_CHAT_ID`
+
+可选：
+
+- `OPENAI_BASE_URL`：覆盖默认 NIM（默认已内置：`https://integrate.api.nvidia.com/v1`）
+- `TELEGRAM_MESSAGE_THREAD_ID`：话题群 thread id
+- `NOTIFY_CHANNEL`：`telegram`（默认）或 `resend`
+- `RESEND_API_KEY` / `EMAIL_TO` / `RESEND_FROM_EMAIL`：仅当你切到 `resend` 时需要
+- `DB_PATH`（默认 `data/trends.db`）
+- `DB_RETENTION_DAYS`（默认 30）
+
+## GitHub Actions
+
+1. Fork/复制本仓库
+2. Settings → Secrets and variables → Actions → Secrets 配置：
+   - `OPENAI_API_KEY`
+   - `OPENAI_MODEL`（建议：`meta/llama3-70b-instruct`）
+   - `TELEGRAM_BOT_TOKEN`
+   - `TELEGRAM_CHAT_ID`
+3. 启用 Actions
+
+默认计划任务：每 **3 天** UTC 02:00 运行（见 `.github/workflows/skills-trending.yml`）。
+
+## 输出说明
+
+- Telegram Top20 每条格式：`rank. name — summary`
+- 报告顶部会显示：`AI: <model> | ok x/y | fallback z`
+
+## License
+
+MIT
 
 ---
 
