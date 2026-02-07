@@ -29,6 +29,15 @@ class HTMLReporter:
         lines = []
         lines.append(f"<b>Skills Trending</b> — {esc(date)}")
 
+        # AI 状态（是否降级）
+        ai = trends.get("_ai") or {}
+        if ai:
+            model = esc(str(ai.get("model", "")))
+            ok = ai.get("ok")
+            total = ai.get("total")
+            fb = ai.get("fallback")
+            lines.append(f"AI: <code>{model}</code> | ok {ok}/{total} | fallback {fb}")
+
         # Top 20
         lines.append("\n<b>Top 20</b>")
         for s in top[:20]:

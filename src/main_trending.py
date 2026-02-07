@@ -136,6 +136,11 @@ def main():
 
         # 构建 AI 摘要映射
         ai_summary_map = {s["name"]: s for s in ai_summaries}
+
+        # 统计 AI 是否降级（fallback=True 表示未成功得到模型结构化输出）
+        fallback_count = sum(1 for s in ai_summaries if s.get("fallback"))
+        ok_count = len(ai_summaries) - fallback_count
+        print(f"   AI 输出: {ok_count}/{len(ai_summaries)} (fallback {fallback_count})")
         print()
 
         # 6. 保存到数据库
@@ -147,6 +152,13 @@ def main():
         print(f"[步骤 7/7] 计算趋势...")
         analyzer = TrendAnalyzer(db)
         trends = analyzer.calculate_trends(today_skills, today, ai_summary_map)
+        # 附加元信息，方便在 Telegram/邮件中展示 AI 运行状态
+        trends["_ai"] = {
+            "model": getattr(summarizer, "model", ""),
+            "ok": ok_count,
+            "fallback": fallback_count,
+            "total": len(ai_summaries),
+        }
 
         # 输出趋势摘要
         print(f"   Top 20: {len(trends['top_20'])} 个")

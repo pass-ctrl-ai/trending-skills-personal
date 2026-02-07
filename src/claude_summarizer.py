@@ -156,6 +156,10 @@ class ClaudeSummarizer:
 
         prompt = f"""你是一个技能分析专家。请分析以下 {len(details)} 个技能，为每个技能生成摘要和分类。
 
+你必须“基于输入证据”进行总结：优先依据用途说明(when_to_use)与规则列表(rules)的文件路径/描述来判断技能用途与类别。
+如果输入信息不足（例如只有 name/URL，缺少用途说明与规则），不要瞎编，不要仅仅翻译/解释技能名称；请在 summary/description/use_case 中明确写“信息不足，需补充规则/用途说明”。
+输出语言：中文（category 使用英文 key，category_zh 使用中文）。
+
 {skills_text}
 
 ---
@@ -165,7 +169,7 @@ class ClaudeSummarizer:
 对每个技能提取以下信息：
 
 1. **summary**: 一句话摘要（不超过30字）
-   - 简洁描述这个技能是什么
+   - 必须依据输入信息总结，不要只把 name 直译
 
 2. **description**: 详细描述（50-100字）
    - 详细说明技能的功能和价值
