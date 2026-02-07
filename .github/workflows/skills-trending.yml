@@ -57,6 +57,22 @@ jobs:
       - name: Create data directory
         run: mkdir -p data
 
+      - name: Debug NIM/OpenAI-compatible endpoint
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
+        run: |
+          set +e
+          echo "OPENAI_BASE_URL=$OPENAI_BASE_URL"
+          # Expect 200 from /models on OpenAI-compatible endpoints
+          code=$(curl -sS -o /tmp/models.json -w "%{http_code}" \
+            -H "Authorization: Bearer ${OPENAI_API_KEY}" \
+            -H "Content-Type: application/json" \
+            "${OPENAI_BASE_URL%/}/models")
+          echo "GET /models -> HTTP $code"
+          head -c 400 /tmp/models.json || true
+          echo
+
       - name: Run Skills Trending
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
