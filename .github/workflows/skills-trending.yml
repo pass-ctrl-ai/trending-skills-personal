@@ -64,14 +64,16 @@ jobs:
           OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
         run: |
           set +e
-          echo "OPENAI_BASE_URL=$OPENAI_BASE_URL"
+          # If secret OPENAI_BASE_URL is missing/empty, fall back to NIM integrate.
+          BASE_URL="${OPENAI_BASE_URL:-https://integrate.api.nvidia.com/v1}"
+          echo "OPENAI_BASE_URL=$BASE_URL"
           echo "OPENAI_MODEL=$OPENAI_MODEL"
 
           # 1) Expect 200 from /models on OpenAI-compatible endpoints
           code=$(curl -sS -o /tmp/models.json -w "%{http_code}" \
             -H "Authorization: Bearer ${OPENAI_API_KEY}" \
             -H "Content-Type: application/json" \
-            "${OPENAI_BASE_URL%/}/models")
+            "${BASE_URL%/}/models")
           echo "GET /models -> HTTP $code"
           head -c 400 /tmp/models.json || true
           echo
@@ -97,7 +99,7 @@ jobs:
             -H "Authorization: Bearer ${OPENAI_API_KEY}" \
             -H "Content-Type: application/json" \
             -d "{\"model\":\"${OPENAI_MODEL}\",\"messages\":[{\"role\":\"user\",\"content\":\"ping\"}],\"max_tokens\":8}" \
-            "${OPENAI_BASE_URL%/}/chat/completions")
+            "${BASE_URL%/}/chat/completions")
           echo "POST /chat/completions -> HTTP $code2"
           head -c 400 /tmp/chat.json || true
           echo
@@ -105,6 +107,7 @@ jobs:
       - name: Run Skills Trending
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          # Optional: if secret OPENAI_BASE_URL is empty/missing, code defaults to NIM integrate.
           OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
           # Model (set OPENAI_MODEL secret for NIM, e.g. qwen3-235b-a22b)
           OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
