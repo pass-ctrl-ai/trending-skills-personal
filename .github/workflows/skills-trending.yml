@@ -1,8 +1,8 @@
 name: Skills Trending Daily
 
-on:
+"on":
   schedule:
-    - cron: '0 2 */3 * *'  # Runs every 3 days at 02:00 UTC (approx; day-of-month step)
+    - cron: "0 2 */3 * *"  # Runs every 3 days at 02:00 UTC (approx; day-of-month step)
 
   workflow_dispatch:
 
@@ -72,7 +72,7 @@ jobs:
           # Optional Resend (if you switch NOTIFY_CHANNEL=resend)
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
-          RESEND_FROM_EMAIL: ${{ secrets.RESEND_FROM_EMAIL || 'onboarding@resend.dev' }}
+          RESEND_FROM_EMAIL: ${{ secrets.RESEND_FROM_EMAIL }}
 
           DB_RETENTION_DAYS: 30
         run: python src/main_trending.py
