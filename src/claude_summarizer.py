@@ -83,30 +83,41 @@ class ClaudeSummarizer:
         # 构建批量分析 Prompt
         prompt = self._build_batch_prompt(details)
 
-        try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.3,
-                max_tokens=self.max_tokens,
-                # 尽量让模型只输出 JSON
-                response_format={"type": "json_object"},
-            )
+        # 简单重试：GitHub Runner 偶发网络抖动时避免直接降级
+        last_err = None
+        for attempt in range(1, 4):
+            try:
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=0.3,
+                    max_tokens=self.max_tokens,
+                    # 尽量让模型只输出 JSON
+                    response_format={"type": "json_object"},
+                )
 
-            result_text = response.choices[0].message.content or ""
-            print("✅ OpenAI 响应成功")
+                result_text = response.choices[0].message.content or ""
+                print("✅ OpenAI 响应成功")
 
-            # 解析结果
-            results = self._parse_batch_response(result_text, details)
+                # 解析结果
+                results = self._parse_batch_response(result_text, details)
 
-            return results
+                return results
 
-        except Exception as e:
-            print(f"❌ OpenAI API 调用失败: {e}")
-            # 返回基本信息作为降级方案
-            return self._fallback_summaries(details)
+            except Exception as e:
+                last_err = e
+                print(f"❌ OpenAI API 调用失败 (attempt {attempt}/3): {e}")
+                # 1, 3, 7 秒退避
+                try:
+                    import time
+                    time.sleep([1, 3, 7][attempt - 1])
+                except Exception:
+                    pass
+
+        # 返回基本信息作为降级方案
+        return self._fallback_summaries(details)
 
     def _build_batch_prompt(self, details: List[Dict]) -> str:
         """

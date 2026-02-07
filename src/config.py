@@ -9,11 +9,19 @@ import os
 # =========================================================================
 # OpenAI 配置
 # =========================================================================
+
+def _get_env_str(key: str, default: str) -> str:
+    v = os.getenv(key)
+    if v is None or v == "":
+        return default
+    return v
+
+
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL")  # optional
 
 # OpenAI 模型配置
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+OPENAI_MODEL = _get_env_str("OPENAI_MODEL", "gpt-4o-mini")
 OPENAI_MAX_TOKENS = int(os.getenv("OPENAI_MAX_TOKENS", "4096"))
 
 # ============================================================================
