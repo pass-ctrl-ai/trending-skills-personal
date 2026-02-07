@@ -180,9 +180,9 @@ class ClaudeSummarizer:
 注意：为了兼容 OpenAI 的 `response_format=json_object`，请输出一个对象，包含字段 `items`：
 
 ```json
-{
+{{
   "items": [
-    {
+    {{
       "name": "skill-name",
       "summary": "一句话摘要",
       "description": "详细描述",
@@ -190,13 +190,13 @@ class ClaudeSummarizer:
       "solves": ["问题1", "问题2", "问题3"],
       "category": "frontend",
       "category_zh": "前端开发"
-    }
+    }}
   ]
-}
+}}
 ```
 
 【重要】
-- 只输出 JSON 数组，不要有任何其他说明文字
+- 只输出 JSON（对象，包含 items 数组），不要有任何其他说明文字
 - 确保 JSON 格式正确有效
 - name 必须与输入的技能名称完全一致
 - solves 数组包含 3-5 个问题关键词
