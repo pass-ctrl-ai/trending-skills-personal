@@ -61,16 +61,45 @@ jobs:
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
+          OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
         run: |
           set +e
           echo "OPENAI_BASE_URL=$OPENAI_BASE_URL"
-          # Expect 200 from /models on OpenAI-compatible endpoints
+          echo "OPENAI_MODEL=$OPENAI_MODEL"
+
+          # 1) Expect 200 from /models on OpenAI-compatible endpoints
           code=$(curl -sS -o /tmp/models.json -w "%{http_code}" \
             -H "Authorization: Bearer ${OPENAI_API_KEY}" \
             -H "Content-Type: application/json" \
             "${OPENAI_BASE_URL%/}/models")
           echo "GET /models -> HTTP $code"
           head -c 400 /tmp/models.json || true
+          echo
+
+          # quick check: whether the desired NIM model ids exist in /models
+          python - <<'PY'
+          import json
+          p = '/tmp/models.json'
+          try:
+            obj = json.load(open(p,'r',encoding='utf-8'))
+            ids = [m.get('id','') for m in obj.get('data',[]) if isinstance(m,dict)]
+          except Exception as e:
+            print('models.json parse failed:', e)
+            raise
+          targets = ['qwen3-235b-a22b', 'deepseek-r1-0528']
+          for t in targets:
+            hit = any(t in i for i in ids)
+            print(f"models contains '{t}':", hit)
+          PY
+
+          # 2) Test POST /chat/completions directly (to catch 404 and response body)
+          code2=$(curl -sS -o /tmp/chat.json -w "%{http_code}" \
+            -H "Authorization: Bearer ${OPENAI_API_KEY}" \
+            -H "Content-Type: application/json" \
+            -d "{\"model\":\"${OPENAI_MODEL}\",\"messages\":[{\"role\":\"user\",\"content\":\"ping\"}],\"max_tokens\":8}" \
+            "${OPENAI_BASE_URL%/}/chat/completions")
+          echo "POST /chat/completions -> HTTP $code2"
+          head -c 400 /tmp/chat.json || true
           echo
 
       - name: Run Skills Trending
