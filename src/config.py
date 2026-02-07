@@ -18,7 +18,8 @@ def _get_env_str(key: str, default: str) -> str:
 
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL")  # optional
+# Default to NVIDIA NIM (OpenAI-compatible). Can be overridden via env if needed.
+OPENAI_BASE_URL = _get_env_str("OPENAI_BASE_URL", "https://integrate.api.nvidia.com/v1")
 
 # OpenAI 模型配置
 OPENAI_MODEL = _get_env_str("OPENAI_MODEL", "gpt-4o-mini")
